@@ -3,9 +3,6 @@
 
 #include "FloorManager.h"
 
-
-
-
 // Sets default values
 AFloorManager::AFloorManager()
 {
@@ -18,19 +15,20 @@ AFloorManager::AFloorManager()
 void AFloorManager::BeginPlay()
 {
 	Super::BeginPlay();
-	GenerateMap();
-
-	// Assign the team colour
-	CollectPlayersAndBombs();
 }
 
 // Called every frame
 void AFloorManager::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	ManageBombs();
-	ManagePlayers();
-	ManageCubes();
+	if(bIsActivated)
+	{
+		ManagePlayers();
+		ManageBombs();
+		ManageCubes();
+		ProcessPrepareStage(DeltaTime);
+		ProcessMatchStage(DeltaTime);
+	}
 }
 
 void AFloorManager::GenerateMap()
@@ -47,37 +45,11 @@ void AFloorManager::GenerateMap()
 	}
 }
 
-void AFloorManager::CollectPlayersAndBombs()
+void AFloorManager::ReceivePlayersAndBombs(TArray<AColourBomb*> Bombs, TArray<AAssignment1BCharacter*> Players)
 {
-	// Find all players in the game world
-	TArray<AActor*> Actors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(),AActor::StaticClass(),Actors);
-
-	// Collect all players
-	for(AActor* Actor: Actors)
-	{
-		if(Cast<AAssignment1BCharacter>(Actor))
-		{
-			PlayersArray.Add(Cast<AAssignment1BCharacter>(Actor));
-		}
-	}
-	
-	// Assign a team color to each player and spawn their owned bombs
-	int PlayerIndex = 0;
-	for(AAssignment1BCharacter* EachPlayer:PlayersArray)
-	{
-		if(PlayerIndex <= 1)
-		{
-			EachPlayer->SpawnBomb(FLinearColor::Red);
-			BombsArray.Add(EachPlayer->SpawnedBomb);
-		}
-		else
-		{
-			EachPlayer->SpawnBomb(FLinearColor::Blue);
-			BombsArray.Add(EachPlayer->SpawnedBomb);
-		}
-		PlayerIndex += 1;
-	}
+	// Receive the data from map manager
+	BombsArray = Bombs;
+	PlayersArray = Players;
 }
 
 void AFloorManager::ManageBombs()
@@ -89,9 +61,9 @@ void AFloorManager::ManageBombs()
 			if(int TileIndexInArray; TilesArray.Find(BombsArray[i]->TilePlaced, TileIndexInArray))
 			{
 				BombsArray[i]->TilesImpacted = GenerateTilesImpacted(TileIndexInArray);
-				
 			}
 		}
+		
 		// Start to detonate cubes with the same colour
 		if(BombsArray[i]->bIsStartingToDetonateCubes)
 		{
@@ -132,10 +104,18 @@ void AFloorManager::CheckCubesImpactedByBombs(AColourBomb* TargetBomb)
 	{
 		for(AColourCube* EachCube:CubesArray)
 		{
-			if(EachCube->TileSpawnedAt == EachTileImpacted&&EachCube->ColourDisplayed == TargetBomb->ColourDisplayed)
+			if(EachCube->TileSpawnedAt == EachTileImpacted)
 			{
-				EachCube->bIsWaitingForDestroy = true;
+				if(EachCube->ColourDisplayed == TargetBomb->ColourDisplayed)
+				{
+					EachCube->bIsWaitingForDestroy = true;
+				}
+				if(EachCube->ColourDisplayed == FLinearColor::Gray)
+				{
+					EachCube->ChangeColour(TargetBomb->ColourDisplayed);
+				}
 			}
+			
 		}
 	}
 	TargetBomb->bIsStartingToDetonateCubes = false;
@@ -145,10 +125,34 @@ void AFloorManager::ManagePlayers()
 {
 	for(int i = 0; i < PlayersArray.Num(); i++)
 	{
+		// In prepare stage
+		if(bIsPreparingToStart)
+		{
+			PlayersArray[i]->PrepareTimeRemain = CurrentPrepareTime;
+			PlayersArray[i]->bIsInPrepare = true;
+			PlayersArray[i]->SetActorLocation(PlayersArray[i]->RespawnLocation);
+		}
+
+		// In Match
+		if(bIsMatchStart)
+		{
+			PlayersArray[i]->bIsInMatch = true;
+			PlayersArray[i]->MatchTimeRemain = CurrentMatchTime;
+			PlayersArray[i]->bIsInPrepare = false;
+		}
+
+		// When the player choose to spawn a cube
 		if(PlayersArray[i]->bIsSpawningCube)
 		{
 			SpawnCubes(PlayersArray[i]->SpawnCubeColour, PlayersArray[i]->CubeSpawnLocation);
 			PlayersArray[i]->bIsSpawningCube = false;
+		}
+
+		// When the player is respawning
+		if(PlayersArray[i]->bIsRespawning)
+		{
+			PlayersArray[i]->bIsInPrepare = true;
+			PlayersArray[i]->SetActorLocation(PlayersArray[i]->RespawnLocation);
 		}
 	}
 }
@@ -162,6 +166,7 @@ void AFloorManager::SpawnCubes(const FLinearColor SpawnCubeColour, const FVector
 
 void AFloorManager::ManageCubes()
 {
+	// Check if the cubes will be destroyed
 	TArray<AColourCube*> CubesToDestroy;
 	for(AColourCube* EachCube:CubesArray)
 	{
@@ -171,6 +176,7 @@ void AFloorManager::ManageCubes()
 		}
 	}
 
+	// Calculate the tiles impacted by the cubes destroyed
 	for(int i = 0; i < CubesToDestroy.Num(); i++)
 	{
 		CubesArray.Remove(CubesToDestroy[i]);
@@ -181,6 +187,122 @@ void AFloorManager::ManageCubes()
 				CubesToDestroy[i]->TilesImpacted = GenerateTilesImpacted(TileIndexInArray);
 			}
 		}
+	}
+}
+
+void AFloorManager::EndMatch()
+{
+	bIsActivated = false;
+	
+	PlayersArray[0]->WhichTeamWin = EvaluateResult();
+	
+	ClearData();
+}
+
+int AFloorManager::EvaluateResult()
+{
+	int RedTilesNum = 0, BlueTilesNum = 0;
+	
+	for(int i = 0; i < TilesArray.Num(); i++)
+	{
+		if(TilesArray[i]->ColourDisplayed == FLinearColor::Red)
+		{
+			RedTilesNum += 1;
+		}
+		else if(TilesArray[i]->ColourDisplayed == FLinearColor::Blue)
+		{
+			BlueTilesNum += 1;
+		}
+	}
+	
+	if(RedTilesNum>BlueTilesNum)
+	{
+		return 1;
+	}
+	else if(RedTilesNum<BlueTilesNum)
+	{
+		return 2;
+	}
+	return 0;
+}
+
+void AFloorManager::ClearData()
+{
+	for(int i = 0; i < PlayersArray.Num(); i++)
+	{
+		PlayersArray[i]->bIsInMatchEnd = true;
+		PlayersArray[i]->bIsInMatch = false;
+	}
+
+	for(int i = 0; i < TilesArray.Num(); i++)
+	{
+		TilesArray[i]->Destroy();
+	}
+	
+	for(int i = 0; i < CubesArray.Num(); i++)
+	{
+		CubesArray[i]->Destroy();
+	}
+	
+	TilesArray.Empty();
+	CubesArray.Empty();
+	BombsArray.Empty();
+	PlayersArray.Empty();
+}
+
+void AFloorManager::ProcessPrepareStage(float DeltaTime)
+{
+	if(bIsPreparingToStart)
+	{
+		CurrentPrepareTime -= DeltaTime;
+		if(CurrentPrepareTime <= 0)
+		{
+			bIsPreparingToStart = false;
+			bIsMatchStart = true;
+			CurrentMatchTime = MatchTimeRequired;
+		}
+	}
+}
+
+void AFloorManager::ProcessMatchStage(float DeltaTime)
+{
+	if(bIsMatchStart)
+	{
+		CurrentMatchTime -= DeltaTime;
+		FrontTeam = EvaluateResult();
+		ManageTiles();
+		if(CurrentMatchTime <= 0)
+		{
+			bIsMatchStart = false;
+			EndMatch();
+		}
+	}
+}
+
+void AFloorManager::ManageTiles()
+{
+	for(int i = 0; i < TilesArray.Num(); i++)
+	{
+		switch (FrontTeam)
+		{
+			case 0:
+			{
+				TilesArray[i]->ChangeEdgeColour(FLinearColor::White);
+				break;
+			}
+			case 1:
+				{
+					TilesArray[i]->ChangeEdgeColour(FLinearColor::Red);
+					break;
+				}
+			case 2:
+				{
+					TilesArray[i]->ChangeEdgeColour(FLinearColor::Blue);
+					break;
+				}
+			default:{}
+		}
+		
 	}
 }
 

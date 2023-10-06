@@ -36,20 +36,10 @@ void AColourCube::Tick(float DeltaTime)
 		CheckSurroundings();
 	}
 	
-	
 	if(bIsWaitingForDestroy)
 	{
 		if(!bIsStartingToDestroy)
 		{
-			/*
-			if(DestroyMaterialClass)
-			{
-				MaterialInstance = UMaterialInstanceDynamic::Create(DestroyMaterialClass, this);
-				CubeMesh->SetMaterial(0,MaterialInstance);
-				MaterialInstance->SetVectorParameterValue("ColourDisplayed", ColourDisplayed);
-			}
-			*/
-
 			bIsStartingToDestroy = true;
 			GetWorld()->GetTimerManager().SetTimer(DestroyTimerHandle, this, &AColourCube::DestroyItself, DestroyTimeRequired, true);
 		}
@@ -239,13 +229,25 @@ void AColourCube::AllSet()
 	GetWorld()->GetTimerManager().ClearTimer(ReadyTimerHandle);
 }
 
+void AColourCube::ChangeColour(FLinearColor ColourToChange)
+{
+	ColourDisplayed = ColourToChange;
+	if(MaterialInstance)
+	{
+		MaterialInstance->SetVectorParameterValue("ColourDisplayed", ColourDisplayed);
+	}
+}
+
 void AColourCube::DiffuseColour()
 {
-	for(AColourFloor* EachTile : TilesImpacted)
+	if(TileSpawnedAt)
 	{
-		EachTile->ChangeColour(ColourDisplayed);
+		for(AColourFloor* EachTile : TilesImpacted)
+		{
+			EachTile->ChangeBaseColour(ColourDisplayed);
+		}
+		TileSpawnedAt->bIsCubePlacedOn = false;
 	}
-	TileSpawnedAt->bIsCubePlacedOn = false;
 }
 
 

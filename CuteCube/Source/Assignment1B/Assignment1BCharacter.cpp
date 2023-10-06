@@ -50,6 +50,9 @@ AAssignment1BCharacter::AAssignment1BCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+
+	MainMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Main Mesh"));
+	MainMesh->SetupAttachment(RootComponent);
 	
 }
 
@@ -69,13 +72,22 @@ void AAssignment1BCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
-	GenerateRandomCubeColour();
+	
+	if(MaterialClass)
+	{
+		MaterialInstance = UMaterialInstanceDynamic::Create(MaterialClass, this);
+		MainMesh->SetMaterial(0,MaterialInstance);
+	}
+	NextCubeColour = GenerateRandomCubeColour();
 }
 
 void AAssignment1BCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
+	
+	ProcessRespawn(DeltaSeconds);
+	ProcessBombCoolDown();
+	
 	// Change and record the tile under foot
 	CallMyTrace(1);
 }
@@ -99,10 +111,6 @@ bool AAssignment1BCharacter::Trace(UWorld* World, TArray<AActor*>& ActorsToIgnor
 
 	// Add our ActorsToIgnore
 	TraceParams.AddIgnoredActors(ActorsToIgnore);
-
-	//const FName TraceTag("MyTraceTag");
-	//World->DebugDrawTraceTag = TraceTag;
-	//TraceParams.TraceTag = TraceTag;
 	
 	// Force clear the HitData which contains our results
 	HitOut = FHitResult(ForceInit);
@@ -132,7 +140,7 @@ void AAssignment1BCharacter::CallMyTrace(int ActionNumber)
 		case 1:
 			{
 				Start = this->GetActorLocation();
-				End = Start - FVector(0,0,500);
+				End = Start - FVector(0,0,150);
 				break;
 			}
 		case 2:
@@ -187,6 +195,10 @@ void AAssignment1BCharacter::CallMyTrace(int ActionNumber)
 void AAssignment1BCharacter::SpawnBomb(FLinearColor TeamColour)
 {
 	this -> ColourDisplayed = TeamColour;
+	if(MaterialInstance)
+	{
+		MaterialInstance->SetVectorParameterValue("ColourDisplayed", ColourDisplayed);
+	}
 	if(BombClass)
 	{
 		SpawnedBomb = GetWorld()->SpawnActor<AColourBomb>(BombClass, this->GetActorLocation(), this->GetActorRotation());
@@ -196,14 +208,14 @@ void AAssignment1BCharacter::SpawnBomb(FLinearColor TeamColour)
 
 void AAssignment1BCharacter::ActivateBomb()
 {
-	if(NS_ActivateBomb&&SpawnedBomb&&TileUnderFoot&&bIsBombCoolDownFinished)
+	if(NS_ActivateBomb&&SpawnedBomb&&TileUnderFoot&&bIsBombCoolDownFinished&&!bIsInPrepare)
 	{
 		if(!TileUnderFoot->bIsBombPlacedOn
 			&&!TileUnderFoot->bIsCubePlacedOn)
 		{
 			// Generate the spawn location and rotation
-			FVector SpawnLocation = TileUnderFoot->GetActorLocation()+FVector(0,0,50);
-			FRotator SpawnRotation = TileUnderFoot->GetActorRotation();
+			const FVector SpawnLocation = TileUnderFoot->GetActorLocation()+FVector(0,0,50);
+			const FRotator SpawnRotation = TileUnderFoot->GetActorRotation();
 
 			// Spawn the niagara effect and initialize its colour
 			UNiagaraComponent* BombComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), NS_ActivateBomb, SpawnLocation, SpawnRotation);
@@ -229,38 +241,49 @@ void AAssignment1BCharacter::ActivateBombCoolDownFinish()
 	GetWorld()->GetTimerManager().ClearTimer(ActivateBombTimerHandle);
 }
 
-void AAssignment1BCharacter::GenerateRandomCubeColour()
+void AAssignment1BCharacter::ProcessBombCoolDown()
 {
-	switch (FMath::RandRange(0,1))
+	if(!bIsBombCoolDownFinished)
+	{
+		if(MaterialInstance)
+		{
+			MaterialInstance->SetVectorParameterValue("ColourDisplayed", FLinearColor::Gray);
+		}
+	}
+	else
+	{
+		if(MaterialInstance)
+		{
+			MaterialInstance->SetVectorParameterValue("ColourDisplayed", ColourDisplayed);
+		}
+	}
+}
+
+FLinearColor AAssignment1BCharacter::GenerateRandomCubeColour()
+{
+	// Generate the colour of the next cube spawned
+	switch (FMath::RandRange(0,2))
 	{
 		case 0:
 			{
-				SpawnCubeColour = FLinearColor::Red;
-				break;
+				return FLinearColor::Red;
 			}
 		case 1:
 			{
-				SpawnCubeColour = FLinearColor::Blue;
-				break;
+				return FLinearColor::Blue;
 			}
 		case 2:
 			{
-				SpawnCubeColour = FLinearColor::Yellow;
-				break;
-			}
-		case 3:
-			{
-				SpawnCubeColour = FLinearColor::Green;
-				break;
+				return FLinearColor::Gray;
 			}
 		default:{}
 	}
-	//SpawnCubeColour = FLinearColor::Green;
+	return FLinearColor::Gray;
 }
 
 void AAssignment1BCharacter::ChooseCubeSpawnLocation()
 {
-	if(bIsCubeCoolDownFinished)
+	if(bIsCubeCoolDownFinished&&!bIsInPrepare)
 	{
 		CallMyTrace(2);
 	}
@@ -298,15 +321,15 @@ void AAssignment1BCharacter::ProcessSpawnCubeHit(FHitResult& HitOut)
 
 		if(bIsLocationCorrect)
 		{
+			SpawnCubeColour = NextCubeColour;
 			bIsSpawningCube = true;
-
+			
 			// Generate the colour of the next cube spawned
-			GenerateRandomCubeColour();
-		
+			NextCubeColour = GenerateRandomCubeColour();
+			
 			// Start cool down
 			bIsCubeCoolDownFinished = false;
 			GetWorld()->GetTimerManager().SetTimer(SpawnCubeTimerHandle, this, &AAssignment1BCharacter::SpawnCubeCoolDownFinish, SpawnCubeCoolDown, true);
-	
 		}
 	}
 }
@@ -318,6 +341,28 @@ void AAssignment1BCharacter::SpawnCubeCoolDownFinish()
 	
 	// Clear the timer
 	GetWorld()->GetTimerManager().ClearTimer(SpawnCubeTimerHandle);
+}
+
+void AAssignment1BCharacter::Respawn()
+{
+	if(!bIsInPrepare)
+	{
+		bIsRespawning = true;
+		PrepareTimeRemain = 5.0f;
+	}
+}
+
+void AAssignment1BCharacter::ProcessRespawn(float DeltaSeconds)
+{
+	if(bIsRespawning)
+	{
+		PrepareTimeRemain -= DeltaSeconds;
+		if(PrepareTimeRemain <= 0)
+		{
+			bIsInPrepare = false;
+			bIsRespawning = false;
+		}
+	}
 }
 
 void AAssignment1BCharacter::ProcessTileHit(FHitResult& HitOut)
@@ -358,6 +403,8 @@ void AAssignment1BCharacter::SetupPlayerInputComponent(class UInputComponent* Pl
 		//Spawn Cube
 		EnhancedInputComponent->BindAction(SpawnCubeAction,ETriggerEvent::Triggered,this,&AAssignment1BCharacter::ChooseCubeSpawnLocation);
 
+		//Respawn
+		EnhancedInputComponent->BindAction(RespawnAction,ETriggerEvent::Triggered,this,&AAssignment1BCharacter::Respawn);
 	}
 
 }
@@ -379,9 +426,12 @@ void AAssignment1BCharacter::Move(const FInputActionValue& Value)
 		// get right vector 
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-		// add movement 
-		AddMovementInput(ForwardDirection, MovementVector.Y);
-		AddMovementInput(RightDirection, MovementVector.X);
+		if(!bIsInPrepare)
+		{
+			// add movement 
+			AddMovementInput(ForwardDirection, MovementVector.Y);
+			AddMovementInput(RightDirection, MovementVector.X);
+		}
 	}
 }
 
@@ -395,7 +445,6 @@ void AAssignment1BCharacter::Look(const FInputActionValue& Value)
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
-		
 	}
 }
 

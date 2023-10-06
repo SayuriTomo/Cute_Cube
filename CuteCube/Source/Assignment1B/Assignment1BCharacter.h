@@ -22,7 +22,7 @@ class AAssignment1BCharacter : public ACharacter, public IColourInterface
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
-
+	
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
@@ -51,11 +51,21 @@ class AAssignment1BCharacter : public ACharacter, public IColourInterface
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* SpawnCubeAction;
 
+	/** Respawn Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* RespawnAction;
+
 public:
 	AAssignment1BCharacter();
 	
 	void StartController();
+
+	UPROPERTY(EditAnywhere)UStaticMeshComponent* MainMesh;
 	
+	UPROPERTY(EditAnywhere)UMaterialInterface* MaterialClass;
+	
+	UPROPERTY()UMaterialInstanceDynamic* MaterialInstance;
+
 protected:
 
 	/** Called for movement input */
@@ -63,9 +73,7 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
-			
-
-protected:
+	
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
@@ -77,6 +85,7 @@ protected:
 public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	
@@ -96,24 +105,25 @@ private:
 	void ActivateBomb();
 
 	// Activate bomb cool down part
-	bool bIsBombCoolDownFinished = true;
 	FTimerHandle ActivateBombTimerHandle;
-	UPROPERTY(EditAnywhere)float ActivateBombCoolDown = 5.0f; // Default cool down is 5 seconds
+	UPROPERTY(EditAnywhere)float ActivateBombCoolDown = 4.0f; // Default cool down is 4 seconds
 	void ActivateBombCoolDownFinish();
-
-	// Generate cube colour module
-	void GenerateRandomCubeColour();
-
+	bool bIsBombCoolDownFinished = true;
+	void ProcessBombCoolDown();
+	
 	// Spawn cube module
-	UPROPERTY(EditAnywhere)int SpawnDistance = 800;
+	UPROPERTY(EditAnywhere)int SpawnDistance = 1200;
 	void ChooseCubeSpawnLocation();
 	void ProcessSpawnCubeHit(FHitResult& HitOut);
 	
 	// Spawn cube cool down part (actually the floor manager will spawn cube to record its location more conveniently)
 	bool bIsCubeCoolDownFinished = true;
 	FTimerHandle SpawnCubeTimerHandle;
-	UPROPERTY(EditAnywhere)float SpawnCubeCoolDown = 2.0f; // Default cool down is 2 seconds
+	UPROPERTY(EditAnywhere)float SpawnCubeCoolDown = 1.5f; // Default cool down is 1.5 seconds
 	void SpawnCubeCoolDownFinish();
+
+	// Generate cube colour module
+	FLinearColor GenerateRandomCubeColour();
 
 public:
 	// Spawn bomb module
@@ -123,8 +133,20 @@ public:
 
 	// Spawn cube public part for floor manager to read
 	bool bIsSpawningCube = false;
-	FLinearColor SpawnCubeColour;
+	FLinearColor SpawnCubeColour; // The colour of the current cube spawned will be
+	FLinearColor NextCubeColour; // The colour of the next cube to display through the crosshair
 	FVector CubeSpawnLocation;
-	
+
+	// Respawn module
+	void Respawn();
+	void ProcessRespawn(float DeltaSeconds);
+	FVector RespawnLocation;
+	bool bIsRespawning = false;
+	bool bIsInMatchEnd = false; // Check if the match just ends
+	bool bIsInMatch = false; // Check if in the match stage
+	bool bIsInPrepare = false; // Check if in the prepare stage
+	float MatchTimeRemain; // Store the time of this match remained
+	float PrepareTimeRemain; // Store the time of this match remained
+	int WhichTeamWin = 0;
 };
 

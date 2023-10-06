@@ -24,7 +24,7 @@ void AColourFloor::BeginPlay()
 		FloorMesh->SetMaterial(0,MaterialInstance);
 	}
 	// Initialize the original colour
-	ChangeColour(FLinearColor::Gray);
+	ChangeBaseColour(FLinearColor::Gray);
 }
 
 // Called every frame
@@ -33,7 +33,7 @@ void AColourFloor::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void AColourFloor::ChangeColour(FLinearColor ColourToChange)
+void AColourFloor::ChangeBaseColour(FLinearColor ColourToChange)
 {
 	if(!bIsCubePlacedOn||(bIsCubePlacedOn&&ColourOfCubePlaced==ColourToChange))
 	{
@@ -42,6 +42,14 @@ void AColourFloor::ChangeColour(FLinearColor ColourToChange)
 		{
 			MaterialInstance->SetVectorParameterValue("ColourDisplayed", ColourDisplayed);
 		}
+	}
+}
+
+void AColourFloor::ChangeEdgeColour(FLinearColor ColourToChange)
+{
+	if(MaterialInstance)
+	{
+		MaterialInstance->SetVectorParameterValue("FrontTeamColour", ColourToChange);
 	}
 }
 

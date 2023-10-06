@@ -42,6 +42,8 @@ public:
 	UPROPERTY()AColourFloor* TileSpawnedAt;
 	bool bIsWaitingForDestroy = false;
 	UPROPERTY()TArray<AColourFloor*> TilesImpacted;
+
+	void ChangeColour(FLinearColor ColourToChange);
 	
 private:
 	// Update surroundings module
@@ -68,6 +70,6 @@ private:
 	bool bIsReady = false;
 	FTimerHandle ReadyTimerHandle;
 	UPROPERTY(EditAnywhere)float ReadyTimeRequired = 0.01f;
-
+	
 	void DiffuseColour();
 };

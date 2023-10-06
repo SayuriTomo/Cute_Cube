@@ -15,7 +15,6 @@ AColourBomb::AColourBomb()
 void AColourBomb::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 // Called every frame
@@ -26,6 +25,7 @@ void AColourBomb::Tick(float DeltaTime)
 
 void AColourBomb::BeActivated(AColourFloor* Tile)
 {
+	// The initial setting when the colour bomb is activated
 	TilePlaced = Tile;
 	TilePlaced->bIsBombPlacedOn = true;
 	bIsActivated = true;
@@ -37,13 +37,14 @@ void AColourBomb::DiffuseColour()
 	// Change the colour of each tile impacted
 	for(AColourFloor* EachTile : TilesImpacted)
 	{
-		EachTile->ChangeColour(ColourDisplayed);
+		EachTile->ChangeBaseColour(ColourDisplayed);
 	}
 
 	bIsStartingToDetonateCubes = true;
+	
 	// Re-initialize the bomb and the tile placed
 	bIsActivated = false;
-	//TilesImpacted.Empty();
+	
 	TilePlaced->bIsBombPlacedOn = false;
 
 	// Clear the timer

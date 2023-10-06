@@ -30,8 +30,10 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 	
-	void ChangeColour(FLinearColor ColourToChange);
+	void ChangeBaseColour(FLinearColor ColourToChange);
 
+	void ChangeEdgeColour(FLinearColor ColourToChange);
+	
 	// Check whether there is a bomb on this tile
 	bool bIsBombPlacedOn = false;
 
