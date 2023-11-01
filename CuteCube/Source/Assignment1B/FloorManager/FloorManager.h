@@ -54,6 +54,9 @@ public:
 	// Receive players and bombs from map manager
 	void ReceivePlayersAndBombs(TArray<AColourBomb*> Bombs,TArray<AAssignment1BCharacter*> Players);
 
+	UPROPERTY(EditAnywhere)bool bIsMainFloorManager;
+	UPROPERTY(EditAnywhere)TArray<AFloorManager*> SubFloorManagers;
+
 private:
 	UPROPERTY()TArray<AColourFloor*> TilesArray; // Store each tile
 	UPROPERTY()TArray<AColourBomb*> BombsArray; // Store each bomb
@@ -81,6 +84,7 @@ private:
 	
 	// Clear the arrays when the manager is unactivated
 	void ClearData();
+	void ClearSelfData();
 
 	void ProcessPrepareStage(float DeltaTime);
 
@@ -89,6 +93,4 @@ private:
 	// Manage tiles module
 	int FrontTeam = 0; // 0 means draw, 1 means red front, 2 means blue front
 	void ManageTiles();
-	
-	
 };

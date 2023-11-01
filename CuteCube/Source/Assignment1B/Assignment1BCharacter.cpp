@@ -50,9 +50,8 @@ AAssignment1BCharacter::AAssignment1BCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
-
-	MainMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Main Mesh"));
-	MainMesh->SetupAttachment(RootComponent);
+	MainMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Main Mesh"));
+	MainMesh -> SetupAttachment(RootComponent);
 	
 }
 
@@ -90,6 +89,8 @@ void AAssignment1BCharacter::Tick(float DeltaSeconds)
 	
 	// Change and record the tile under foot
 	CallMyTrace(1);
+	
+	UpdateWalkSpeed();
 }
 
 bool AAssignment1BCharacter::Trace(UWorld* World, TArray<AActor*>& ActorsToIgnore, const FVector& Start,const FVector& End, FHitResult& HitOut, ECollisionChannel CollisionChannel, bool ReturnPhysMat)
@@ -281,6 +282,32 @@ FLinearColor AAssignment1BCharacter::GenerateRandomCubeColour()
 	return FLinearColor::Gray;
 }
 
+void AAssignment1BCharacter::UpdateWalkSpeed()
+{
+	if(TileUnderFoot)
+	{
+		if(TileUnderFoot->ColourDisplayed == ColourDisplayed)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = 500.f;
+		}
+		else
+		{
+			if(TileUnderFoot->ColourDisplayed == FLinearColor::Gray)
+			{
+				GetCharacterMovement()->MaxWalkSpeed = 350.f;
+			}
+			else
+			{
+				GetCharacterMovement()->MaxWalkSpeed = 200.f;
+			}
+		}
+	}
+	else
+	{
+		GetCharacterMovement()->MaxWalkSpeed = 350.f;
+	}
+}
+
 void AAssignment1BCharacter::ChooseCubeSpawnLocation()
 {
 	if(bIsCubeCoolDownFinished&&!bIsInPrepare)
@@ -300,16 +327,13 @@ void AAssignment1BCharacter::ProcessSpawnCubeHit(FHitResult& HitOut)
 			&&!Cast<AColourFloor>(HitOut.GetActor())->bIsCubePlacedOn)
 		{
 			CubeSpawnLocation = HitOut.GetActor()->GetActorLocation() + HitOut.Normal*100;
+			CubeSpawnTile = Cast<AColourFloor>(HitOut.GetActor());
 			bIsLocationCorrect = true;
 		}
 		else if(Cast<AColourCube>(HitOut.GetActor()))
 		{
 			// Check whether the normal is toward the right direction
-			if(HitOut.Normal.Equals(FVector_NetQuantizeNormal(1.f,0,0))
-				||HitOut.Normal.Equals(FVector_NetQuantizeNormal(-1.f,0,0))
-				||HitOut.Normal.Equals(FVector_NetQuantizeNormal(0,1.f,0))
-				||HitOut.Normal.Equals(FVector_NetQuantizeNormal(0,-1.f,0))
-				||HitOut.Normal.Equals(FVector_NetQuantizeNormal(0,0,1.f)))
+			if(HitOut.Normal.Equals(FVector_NetQuantizeNormal(0,0,1.f)))
 			{
 				CubeSpawnLocation = HitOut.GetActor()->GetActorLocation()
 										+ FVector(round(HitOut.Normal.X)*200,

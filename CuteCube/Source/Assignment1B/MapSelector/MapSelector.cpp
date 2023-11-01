@@ -44,6 +44,12 @@ void AMapSelector::StartMatch()
 	{
 		FloorManagerOwned->GenerateMap();
 		FloorManagerOwned->bIsActivated = true;
+		
+		for(AFloorManager* SubFloor:FloorManagerOwned->SubFloorManagers)
+		{
+			SubFloor->bIsActivated = true;
+			SubFloor->ReceivePlayersAndBombs(ParentMapManager->BombsArray,ParentMapManager->PlayersArray);
+		}
 		ParentMapManager->WaitFloor->bIsActivated = false;
 	}
 	FloorManagerOwned->CurrentPrepareTime = FloorManagerOwned->PrepareTimeRequired;

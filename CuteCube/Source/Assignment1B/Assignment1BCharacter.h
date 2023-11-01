@@ -60,7 +60,7 @@ public:
 	
 	void StartController();
 
-	UPROPERTY(EditAnywhere)UStaticMeshComponent* MainMesh;
+	UPROPERTY(EditAnywhere)USkeletalMeshComponent* MainMesh;
 	
 	UPROPERTY(EditAnywhere)UMaterialInterface* MaterialClass;
 	
@@ -125,6 +125,9 @@ private:
 	// Generate cube colour module
 	FLinearColor GenerateRandomCubeColour();
 
+	// Change the max walk speed
+	void UpdateWalkSpeed();
+
 public:
 	// Spawn bomb module
 	UPROPERTY(EditAnywhere)TSubclassOf<class AColourBomb> BombClass;
@@ -136,6 +139,7 @@ public:
 	FLinearColor SpawnCubeColour; // The colour of the current cube spawned will be
 	FLinearColor NextCubeColour; // The colour of the next cube to display through the crosshair
 	FVector CubeSpawnLocation;
+	UPROPERTY()AColourFloor* CubeSpawnTile;
 
 	// Respawn module
 	void Respawn();

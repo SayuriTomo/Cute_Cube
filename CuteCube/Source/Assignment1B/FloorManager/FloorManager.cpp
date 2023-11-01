@@ -15,6 +15,13 @@ AFloorManager::AFloorManager()
 void AFloorManager::BeginPlay()
 {
 	Super::BeginPlay();
+	if(bIsMainFloorManager)
+	{
+		for(AFloorManager* SubFloor:SubFloorManagers)
+		{
+			SubFloor->GenerateMap();
+		}
+	}
 }
 
 // Called every frame
@@ -26,8 +33,11 @@ void AFloorManager::Tick(float DeltaTime)
 		ManagePlayers();
 		ManageBombs();
 		ManageCubes();
-		ProcessPrepareStage(DeltaTime);
-		ProcessMatchStage(DeltaTime);
+		if(bIsMainFloorManager)
+		{
+			ProcessPrepareStage(DeltaTime);
+			ProcessMatchStage(DeltaTime);
+		}
 	}
 }
 
@@ -65,7 +75,7 @@ void AFloorManager::ManageBombs()
 		}
 		
 		// Start to detonate cubes with the same colour
-		if(BombsArray[i]->bIsStartingToDetonateCubes)
+		if(BombsArray[i]->bIsStartingToDetonateCubes&&TilesArray.Contains(BombsArray[i]->TilePlaced))
 		{
 			CheckCubesImpactedByBombs(BombsArray[i]);
 		}
@@ -144,8 +154,11 @@ void AFloorManager::ManagePlayers()
 		// When the player choose to spawn a cube
 		if(PlayersArray[i]->bIsSpawningCube)
 		{
-			SpawnCubes(PlayersArray[i]->SpawnCubeColour, PlayersArray[i]->CubeSpawnLocation);
-			PlayersArray[i]->bIsSpawningCube = false;
+			if(TilesArray.Contains(PlayersArray[i]->CubeSpawnTile))
+			{
+				SpawnCubes(PlayersArray[i]->SpawnCubeColour, PlayersArray[i]->CubeSpawnLocation);
+				PlayersArray[i]->bIsSpawningCube = false;
+			}
 		}
 
 		// When the player is respawning
@@ -214,6 +227,20 @@ int AFloorManager::EvaluateResult()
 			BlueTilesNum += 1;
 		}
 	}
+	for(AFloorManager* SubFloor:SubFloorManagers)
+	{
+		for(int i = 0; i < SubFloor->TilesArray.Num(); i++)
+		{
+			if(SubFloor->TilesArray[i]->ColourDisplayed == FLinearColor::Red)
+			{
+				RedTilesNum += 1;
+			}
+			else if(SubFloor->TilesArray[i]->ColourDisplayed == FLinearColor::Blue)
+			{
+				BlueTilesNum += 1;
+			}
+		}
+	}
 	
 	if(RedTilesNum>BlueTilesNum)
 	{
@@ -234,17 +261,27 @@ void AFloorManager::ClearData()
 		PlayersArray[i]->bIsInMatch = false;
 	}
 
+	ClearSelfData();
+	
+	for(AFloorManager* SubFloor:SubFloorManagers)
+	{
+		SubFloor->ClearSelfData();
+	}
+}
+
+void AFloorManager::ClearSelfData()
+{
 	for(int i = 0; i < TilesArray.Num(); i++)
 	{
-		TilesArray[i]->Destroy();
+		TilesArray[i]->ChangeBaseColour(FLinearColor::Gray);
+		TilesArray[i]->ChangeEdgeColour(FLinearColor::White);
 	}
 	
 	for(int i = 0; i < CubesArray.Num(); i++)
 	{
 		CubesArray[i]->Destroy();
 	}
-	
-	TilesArray.Empty();
+
 	CubesArray.Empty();
 	BombsArray.Empty();
 	PlayersArray.Empty();
