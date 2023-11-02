@@ -152,5 +152,17 @@ public:
 	float MatchTimeRemain; // Store the time of this match remained
 	float PrepareTimeRemain; // Store the time of this match remained
 	int WhichTeamWin = 0;
+
+	// Cube power up ability unlock module
+	void CubeAbilityUnlock();
+	void CubeAbilityFinish();
+	FTimerHandle CubeAbilityTimerHandle;
+	UPROPERTY(EditAnywhere)float CubeAbilityTimeRemained = 15.0f;
+	bool bIsSpawnSameCubesUnlocked = false;
+
+	// Bomb power up ability
+	void BombAbilityUnlock();
+	bool bIsSpawnEnhancedBombUnlocked = false;
+	UPROPERTY(EditAnywhere)TSubclassOf<class AEnhancedBomb> EnhancedBombClass;
 };
 

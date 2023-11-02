@@ -10,6 +10,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Components/Image.h"
+#include "EnhancedBomb/EnhancedBomb.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -209,27 +210,42 @@ void AAssignment1BCharacter::SpawnBomb(FLinearColor TeamColour)
 
 void AAssignment1BCharacter::ActivateBomb()
 {
-	if(NS_ActivateBomb&&SpawnedBomb&&TileUnderFoot&&bIsBombCoolDownFinished&&!bIsInPrepare)
+	if(bIsSpawnEnhancedBombUnlocked)
 	{
-		if(!TileUnderFoot->bIsBombPlacedOn
-			&&!TileUnderFoot->bIsCubePlacedOn)
+		if(EnhancedBombClass)
 		{
-			// Generate the spawn location and rotation
-			const FVector SpawnLocation = TileUnderFoot->GetActorLocation()+FVector(0,0,50);
-			const FRotator SpawnRotation = TileUnderFoot->GetActorRotation();
-
-			// Spawn the niagara effect and initialize its colour
-			UNiagaraComponent* BombComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), NS_ActivateBomb, SpawnLocation, SpawnRotation);
-			BombComponent->SetNiagaraVariableLinearColor(FString("ColourDisplayed"),ColourDisplayed);
-
-			// Activate the bomb
-			SpawnedBomb->BeActivated(TileUnderFoot);
+			const FVector SpawnLocation = this->GetActorLocation()+FVector(0,0,50);
+			AEnhancedBomb* SpawnedEnhancedBomb = GetWorld()->SpawnActor<AEnhancedBomb>(EnhancedBombClass, SpawnLocation, this->GetActorRotation());
+			SpawnedEnhancedBomb -> ColourDisplayed = ColourDisplayed;
+			bIsSpawnEnhancedBombUnlocked = false;
 			
-			// Start cool down
 			bIsBombCoolDownFinished = false;
 			GetWorld()->GetTimerManager().SetTimer(ActivateBombTimerHandle, this, &AAssignment1BCharacter::ActivateBombCoolDownFinish, ActivateBombCoolDown, true);
 		}
-		
+	}
+	else
+	{
+		if(NS_ActivateBomb&&SpawnedBomb&&TileUnderFoot&&bIsBombCoolDownFinished&&!bIsInPrepare)
+		{
+			if(!TileUnderFoot->bIsBombPlacedOn
+				&&!TileUnderFoot->bIsCubePlacedOn)
+			{
+				// Generate the spawn location and rotation
+				const FVector SpawnLocation = TileUnderFoot->GetActorLocation()+FVector(0,0,50);
+				const FRotator SpawnRotation = TileUnderFoot->GetActorRotation();
+
+				// Spawn the niagara effect and initialize its colour
+				UNiagaraComponent* BombComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), NS_ActivateBomb, SpawnLocation, SpawnRotation);
+				BombComponent->SetNiagaraVariableLinearColor(FString("ColourDisplayed"),ColourDisplayed);
+
+				// Activate the bomb
+				SpawnedBomb->BeActivated(TileUnderFoot);
+			
+				// Start cool down
+				bIsBombCoolDownFinished = false;
+				GetWorld()->GetTimerManager().SetTimer(ActivateBombTimerHandle, this, &AAssignment1BCharacter::ActivateBombCoolDownFinish, ActivateBombCoolDown, true);
+			}
+		}
 	}
 }
 
@@ -349,7 +365,14 @@ void AAssignment1BCharacter::ProcessSpawnCubeHit(FHitResult& HitOut)
 			bIsSpawningCube = true;
 			
 			// Generate the colour of the next cube spawned
-			NextCubeColour = GenerateRandomCubeColour();
+			if(bIsSpawnSameCubesUnlocked)
+			{
+				NextCubeColour = ColourDisplayed;
+			}
+			else
+			{
+				NextCubeColour = GenerateRandomCubeColour();
+			}
 			
 			// Start cool down
 			bIsCubeCoolDownFinished = false;
@@ -387,6 +410,24 @@ void AAssignment1BCharacter::ProcessRespawn(float DeltaSeconds)
 			bIsRespawning = false;
 		}
 	}
+}
+
+void AAssignment1BCharacter::CubeAbilityUnlock()
+{
+	bIsSpawnSameCubesUnlocked = true;
+	NextCubeColour = ColourDisplayed;
+	GetWorld()->GetTimerManager().SetTimer(CubeAbilityTimerHandle, this, &AAssignment1BCharacter::CubeAbilityFinish, CubeAbilityTimeRemained, true);
+}
+
+void AAssignment1BCharacter::CubeAbilityFinish()
+{
+	bIsSpawnSameCubesUnlocked = false;
+	GetWorld()->GetTimerManager().ClearTimer(CubeAbilityTimerHandle);
+}
+
+void AAssignment1BCharacter::BombAbilityUnlock()
+{
+	bIsSpawnEnhancedBombUnlocked = true;
 }
 
 void AAssignment1BCharacter::ProcessTileHit(FHitResult& HitOut)

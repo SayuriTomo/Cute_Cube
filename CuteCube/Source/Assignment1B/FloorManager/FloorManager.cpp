@@ -259,8 +259,12 @@ void AFloorManager::ClearData()
 	{
 		PlayersArray[i]->bIsInMatchEnd = true;
 		PlayersArray[i]->bIsInMatch = false;
+		PlayersArray[i]->bIsSpawnSameCubesUnlocked = false;
+		PlayersArray[i]->bIsSpawnEnhancedBombUnlocked = false;
 	}
 
+	if(RoomMesh)RoomMesh->ChangeColour(FLinearColor::Gray);
+	
 	ClearSelfData();
 	
 	for(AFloorManager* SubFloor:SubFloorManagers)
@@ -307,7 +311,7 @@ void AFloorManager::ProcessMatchStage(float DeltaTime)
 	{
 		CurrentMatchTime -= DeltaTime;
 		FrontTeam = EvaluateResult();
-		ManageTiles();
+		ManageRoom();
 		if(CurrentMatchTime <= 0)
 		{
 			bIsMatchStart = false;
@@ -316,30 +320,28 @@ void AFloorManager::ProcessMatchStage(float DeltaTime)
 	}
 }
 
-void AFloorManager::ManageTiles()
+void AFloorManager::ManageRoom()
 {
-	for(int i = 0; i < TilesArray.Num(); i++)
+	if(RoomMesh)
 	{
 		switch (FrontTeam)
-		{
-			case 0:
+		{case 0:
 			{
-				TilesArray[i]->ChangeEdgeColour(FLinearColor::White);
+				RoomMesh->ChangeColour(FLinearColor::Gray);
 				break;
 			}
-			case 1:
-				{
-					TilesArray[i]->ChangeEdgeColour(FLinearColor::Red);
-					break;
-				}
-			case 2:
-				{
-					TilesArray[i]->ChangeEdgeColour(FLinearColor::Blue);
-					break;
-				}
-			default:{}
+		case 1:
+			{
+				RoomMesh->ChangeColour(FLinearColor::Red);
+				break;
+			}
+		case 2:
+			{
+				RoomMesh->ChangeColour(FLinearColor::Blue);
+				break;
+			}
+		default:{}
 		}
-		
 	}
 }
 

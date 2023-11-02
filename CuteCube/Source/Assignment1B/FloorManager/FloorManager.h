@@ -7,6 +7,7 @@
 #include "Assignment1B/ColourBomb/ColourBomb.h"
 #include "GameFramework/Actor.h"
 #include "Assignment1B/ColourFloor/ColourFloor.h"
+#include "Assignment1B/RoomMesh/RoomMesh.h"
 #include "Kismet/GameplayStatics.h"
 #include "FloorManager.generated.h"
 
@@ -90,7 +91,8 @@ private:
 
 	void ProcessMatchStage(float DeltaTime);
 	
-	// Manage tiles module
+	// Manage room module
 	int FrontTeam = 0; // 0 means draw, 1 means red front, 2 means blue front
-	void ManageTiles();
+	void ManageRoom();
+	UPROPERTY(EditAnywhere) ARoomMesh* RoomMesh;
 };
